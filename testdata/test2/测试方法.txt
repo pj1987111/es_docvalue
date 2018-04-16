@@ -1,0 +1,50 @@
+PUT /my_temp_index
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "doc": {
+      "properties": {
+        "created": {
+          "type": "date",
+          "doc_values": true
+        },
+        "name": {
+          "type": "keyword"
+        },
+        "title": {
+          "type": "keyword"
+        },
+        "age": {
+          "type": "integer",
+          "doc_values": true
+        }
+      }
+    }
+  }
+}
+
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/1' -d '{"name" : "zhy11","create":"2015-01-01","age":"1"}'
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/2' -d '{"name" : "zhy12","create":"2016-01-01","age":"100"}'
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/3' -d '{"name" : "zhy13","create":"2017-01-01","age":"200"}'
+curl -XPOST '10.68.23.81:9209/zhy_test04/_flush'
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/4' -d '{"name" : "zhy14","create":"2018-01-01","age":"7"}'
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/5' -d '{"name" : "zhy15","create":"2019-01-01","age":"37"}'
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/6' -d '{"name" : "zhy16","create":"2020-01-01","age":"67"}'
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/7' -d '{"name" : "zhy16","create":"2020-01-01","age":"97"}'
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/8' -d '{"name" : "zhy16","create":"2020-01-01","age":"127"}'
+curl -XPOST '10.68.23.81:9209/zhy_test04/_flush'
+到此为止是第一个目录的文件
+
+curl -XPOST '10.68.23.81:9209/zhy_test04/_forcemerge?max_num_segments=1'
+执行merge后是第二个目录的文件
+
+
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/1' -d '{"name" : "zhy11","create":"2015-01-01","age":"1"}'
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/2' -d '{"name" : "zhy12","create":"2016-01-01","age":"100"}'
+curl -XPUT '10.68.23.81:9209/zhy_test04/doc/3' -d '{"name" : "zhy13","create":"2017-01-01","age":"200"}'
+curl -XDELETE '10.68.23.81:9209/zhy_test04/doc/2'
+curl -XPOST '10.68.23.81:9209/zhy_test04/_flush'
+curl -XPOST '10.68.23.81:9209/zhy_test04/_forcemerge?max_num_segments=1'

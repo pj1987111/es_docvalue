@@ -1,0 +1,148 @@
+PUT /my_temp_index
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "doc": {
+      "properties": {
+        "created": {
+          "type": "date",
+          "doc_values": true
+        },
+        "name": {
+          "type": "keyword"
+        },
+        "title": {
+          "type": "keyword"
+        },
+        "age": {
+          "type": "integer",
+          "doc_values": true
+        }
+      }
+    }
+  }
+}
+
+curl -XPUT '10.68.23.81:9209/zhy_test03/doc/1' -d '{"name" : "zhy11","create":"2015-01-01","age":"32"}'
+curl -XPUT '10.68.23.81:9209/zhy_test03/doc/2' -d '{"name" : "zhy12","create":"2016-01-01","age":"33"}'
+curl -XPUT '10.68.23.81:9209/zhy_test03/doc/3' -d '{"name" : "zhy13","create":"2017-01-01","age":"31"}'
+curl -XPOST '10.68.23.81:9209/zhy_test03/_flush'
+curl -XPUT '10.68.23.81:9209/zhy_test03/doc/4' -d '{"name" : "zhy14","create":"2018-01-01","age":"35"}'
+curl -XPUT '10.68.23.81:9209/zhy_test03/doc/5' -d '{"name" : "zhy15","create":"2019-01-01","age":"34"}'
+curl -XPUT '10.68.23.81:9209/zhy_test03/doc/6' -d '{"name" : "zhy16","create":"2020-01-01","age":"36"}'
+curl -XPOST '10.68.23.81:9209/zhy_test03/_flush'
+到此为止是第一个目录的文件
+
+curl -XPOST '10.68.23.81:9209/zhy_test03/_forcemerge?max_num_segments=1'
+执行merge后是第二个目录的文件
+
+curl -XDELETE '10.68.23.81:9209/zhy_test03/doc/2'
+curl -XDELETE '10.68.23.81:9209/zhy_test03/doc/5'
+curl -XPOST '10.68.23.81:9209/zhy_test03/_flush'
+curl -XPOST '10.68.23.81:9209/zhy_test03/_forcemerge?max_num_segments=1'
+curl -XDELETE '10.68.23.81:9209/zhy_test03/doc/6'
+curl -XPOST '10.68.23.81:9209/zhy_test03/_flush'
+执行后是第三个目录的文件
+
+curl -XDELETE '10.68.23.81:9209/zhy_test03/doc/1'
+curl -XPOST '10.68.23.81:9209/zhy_test03/_forcemerge?max_num_segments=1'
+执行后是第四个目录的文件
+
+curl -XPUT '10.68.23.81:9209/zhy_test03/doc/6' -d '{"name" : "zhy16","create":"2020-01-01","age":"36"}'
+curl -XPUT '10.68.23.81:9209/zhy_test03/doc/6' -d '{"name" : "zhy16","create":"2020-01-01","age":"36"}'
+curl -XPOST '10.68.23.81:9209/zhy_test03/_flush'
+curl -XPUT '10.68.23.81:9209/zhy_test03/doc/3' -d '{"name" : "zhy13","create":"2017-01-01","age":"33"}'
+curl -XPOST '10.68.23.81:9209/zhy_test03/_flush'
+执行后是第五个目录的文件
+结果：
+1目录：
+_source:NONE=====_type:SORTED_SET=====_uid:NONE=====_version:NUMERIC=====name:SORTED_SET=====create:SORTED_NUMERIC=====age:SORTED_NUMERIC=====_all:NONE=====_field_names:NONE=====
+Start....
+SORTED_SET _type : doc
+SORTED_SET _type : doc
+SORTED_SET _type : doc
+SORTED_SET name : zhy11
+SORTED_SET name : zhy12
+SORTED_SET name : zhy13
+SORTED_NUMERIC create : 1420070400000
+SORTED_NUMERIC create : 1451606400000
+SORTED_NUMERIC create : 1483228800000
+NUMERIC _version : 1
+NUMERIC _version : 1
+NUMERIC _version : 1
+SORTED_NUMERIC age : 31
+SORTED_NUMERIC age : 32
+SORTED_NUMERIC age : 33
+_source:NONE=====_type:SORTED_SET=====_uid:NONE=====_version:NUMERIC=====name:SORTED_SET=====create:SORTED_NUMERIC=====age:SORTED_NUMERIC=====_all:NONE=====_field_names:NONE=====
+Start....
+SORTED_SET _type : doc
+SORTED_SET _type : doc
+SORTED_SET _type : doc
+SORTED_SET name : zhy14
+SORTED_SET name : zhy15
+SORTED_SET name : zhy16
+SORTED_NUMERIC create : 1514764800000
+SORTED_NUMERIC create : 1546300800000
+SORTED_NUMERIC create : 1577836800000
+NUMERIC _version : 1
+NUMERIC _version : 1
+NUMERIC _version : 1
+SORTED_NUMERIC age : 34
+SORTED_NUMERIC age : 35
+SORTED_NUMERIC age : 36
+
+2目录：
+_source:NONE=====_type:SORTED_SET=====_uid:NONE=====_version:NUMERIC=====name:SORTED_SET=====create:SORTED_NUMERIC=====age:SORTED_NUMERIC=====_all:NONE=====_field_names:NONE=====
+Start....
+SORTED_SET _type : doc
+SORTED_SET _type : doc
+SORTED_SET _type : doc
+SORTED_SET _type : doc
+SORTED_SET _type : doc
+SORTED_SET _type : doc
+SORTED_SET name : zhy14
+SORTED_SET name : zhy15
+SORTED_SET name : zhy16
+SORTED_SET name : zhy11
+SORTED_SET name : zhy12
+SORTED_SET name : zhy13
+SORTED_NUMERIC create : 1514764800000
+SORTED_NUMERIC create : 1546300800000
+SORTED_NUMERIC create : 1577836800000
+SORTED_NUMERIC create : 1420070400000
+SORTED_NUMERIC create : 1451606400000
+SORTED_NUMERIC create : 1483228800000
+NUMERIC _version : 1
+NUMERIC _version : 1
+NUMERIC _version : 1
+NUMERIC _version : 1
+NUMERIC _version : 1
+NUMERIC _version : 1
+SORTED_NUMERIC age : 34
+SORTED_NUMERIC age : 35
+SORTED_NUMERIC age : 36
+SORTED_NUMERIC age : 31
+SORTED_NUMERIC age : 32
+SORTED_NUMERIC age : 33
+
+_source:NONE=====_type:SORTED_SET=====_uid:NONE=====_version:NUMERIC=====name:SORTED_SET=====create:SORTED_NUMERIC=====age:SORTED_NUMERIC=====_all:NONE=====_field_names:NONE=====
+Start....
+SORTED_SET _type : doc
+SORTED_SET name : zhy16
+SORTED_NUMERIC create : 1577836800000
+NUMERIC _version : 2
+SORTED_NUMERIC age : 36
+更新的状态
+
+结论：
+1：段追加到段上，内部顺序不会发生变化
+2：删除文件如果不merge，是在liveDoc的地方打上标记。merge后才是真正的删除
+3：更新就是删除+追加
+
+数据跟踪思路：
+在数据put进去的时候，记录位置。FLUSH的时候刷到硬盘
+在合并的时候在段的头部加offset，根据liveDocs来标记删除数据。
+merge后对数据更正偏移

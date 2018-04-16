@@ -1,0 +1,5 @@
+SegmentInfo 修改因为增加文件导致校验出错
+Lucene54DocValuesFormat 添加索引常量
+Lucene54DocValuesConsumer 添加写索引
+TrackingDirectoryWrapper和FilterDirectory 添加索引路径，逻辑判断
+添加PathUtil
