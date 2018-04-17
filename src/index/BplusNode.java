@@ -2,38 +2,54 @@ package index;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
-public class BplusNode <K extends Comparable<K>, V> {
+public class BplusNode<K extends Comparable<K>, V> {
 
-    /** 是否为叶子节点 */
+    /**
+     * 是否为叶子节点
+     */
     protected boolean isLeaf;
 
-    /** 是否为根节点*/
+    /**
+     * 是否为根节点
+     */
     protected boolean isRoot;
 
-    /** 父节点 */
+    /**
+     * 父节点
+     */
     protected BplusNode<K, V> parent;
 
-    /** 叶节点的前节点*/
+    /**
+     * 叶节点的前节点
+     */
     protected BplusNode<K, V> previous;
 
-    /** 叶节点的后节点*/
+    /**
+     * 叶节点的后节点
+     */
     protected BplusNode<K, V> next;
 
-    /** 节点的关键字 */
+    /**
+     * 节点的关键字
+     */
     protected List<Entry<K, V>> entries;
 
-    /** 子节点 */
+    /**
+     * 子节点
+     */
     protected List<BplusNode<K, V>> children;
 
     public BplusNode(boolean isLeaf) {
         this.isLeaf = isLeaf;
-        entries = new ArrayList<Entry<K, V>>();
+        entries = new ArrayList<>();
 
         if (!isLeaf) {
-            children = new ArrayList<BplusNode<K, V>>();
+            children = new ArrayList<>();
         }
     }
 
@@ -42,12 +58,149 @@ public class BplusNode <K extends Comparable<K>, V> {
         this.isRoot = isRoot;
     }
 
-    public V get(K key) {
+    public BplusNode<K, V> getNext() {
+        return next;
+    }
 
+    /**
+     * 取>=key的节点
+     *
+     * @param key
+     * @return
+     */
+    public Entry<BplusNode<K, V>, Integer> getClosestSmallEqual(K key) {
+        //如果是叶子节点
+        if (isLeaf) {
+            int closestLeftPosition = -1;
+            int closestRightPosition = -1;
+            int low = 0, high = entries.size() - 1, mid;
+            int comp;
+            while (low <= high) {
+                mid = (low + high) / 2;
+                Entry<K, V> midEntry = entries.get(mid);
+                comp = midEntry.getKey().compareTo(key);
+                if (comp == 0) {
+                    return new SimpleEntry<>(this, mid);
+                } else if (comp < 0) {
+                    low = mid + 1;
+                    closestLeftPosition = mid;
+                } else {
+                    high = mid - 1;
+                    closestRightPosition = mid;
+                }
+            }
+            // 左右都无值
+            if (closestLeftPosition == -1 && closestRightPosition == -1)
+                return null;
+            //有大值
+            if (closestRightPosition != -1)
+                return new SimpleEntry<>(this, closestRightPosition);
+            //无大值有小值，取后一个段的最小值
+            if (closestLeftPosition != -1) {
+                BplusNode<K, V> nextNode = this.next;
+                if (nextNode != null)
+                    return new SimpleEntry<>(nextNode, 0);
+                return null;
+            }
+        }
+        //如果不是叶子节点
+        //如果key小于节点最左边的key，沿第一个子节点继续搜索
+        if (key.compareTo(entries.get(0).getKey()) < 0) {
+            return children.get(0).getClosestSmallEqual(key);
+            //如果key大于等于节点最右边的key，沿最后一个子节点继续搜索
+        } else if (key.compareTo(entries.get(entries.size() - 1).getKey()) >= 0) {
+            return children.get(children.size() - 1).getClosestSmallEqual(key);
+            //否则沿比key大的前一个子节点继续搜索
+        } else {
+            int low = 0, high = entries.size() - 1, mid = 0;
+            int comp;
+            while (low <= high) {
+                mid = (low + high) / 2;
+                comp = entries.get(mid).getKey().compareTo(key);
+                if (comp == 0) {
+                    return children.get(mid + 1).getClosestSmallEqual(key);
+                } else if (comp < 0) {
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            return children.get(low).getClosestSmallEqual(key);
+        }
+    }
+
+    /**
+     * 取<=key的节点
+     *
+     * @param key
+     * @return
+     */
+    public Entry<BplusNode<K, V>, Integer> getClosestBigEqual(K key) {
+        //如果是叶子节点
+        if (isLeaf) {
+            int closestLeftPosition = -1;
+            int closestRightPosition = -1;
+            int low = 0, high = entries.size() - 1, mid;
+            int comp;
+            while (low <= high) {
+                mid = (low + high) / 2;
+                Entry<K, V> midEntry = entries.get(mid);
+                comp = midEntry.getKey().compareTo(key);
+                if (comp == 0) {
+                    return new SimpleEntry<>(this, mid);
+                } else if (comp < 0) {
+                    low = mid + 1;
+                    closestLeftPosition = mid;
+                } else {
+                    high = mid - 1;
+                    closestRightPosition = mid;
+                }
+            }
+            // 左右都无值
+            if (closestLeftPosition == -1 && closestRightPosition == -1)
+                return null;
+            //有小值
+            if (closestLeftPosition != -1)
+                return new SimpleEntry<>(this, closestLeftPosition);
+            //无小值有大值，取前一个段的最大值
+            if (closestRightPosition != -1) {
+                BplusNode<K, V> previousNode = this.previous;
+                if (previousNode != null)
+                    return new SimpleEntry<>(previousNode, previousNode.entries.size() - 1);
+                return null;
+            }
+        }
+        //如果不是叶子节点
+        //如果key小于节点最左边的key，沿第一个子节点继续搜索
+        if (key.compareTo(entries.get(0).getKey()) < 0) {
+            return children.get(0).getClosestBigEqual(key);
+            //如果key大于等于节点最右边的key，沿最后一个子节点继续搜索
+        } else if (key.compareTo(entries.get(entries.size() - 1).getKey()) >= 0) {
+            return children.get(children.size() - 1).getClosestBigEqual(key);
+            //否则沿比key大的前一个子节点继续搜索
+        } else {
+            int low = 0, high = entries.size() - 1, mid = 0;
+            int comp;
+            while (low <= high) {
+                mid = (low + high) / 2;
+                comp = entries.get(mid).getKey().compareTo(key);
+                if (comp == 0) {
+                    return children.get(mid + 1).getClosestBigEqual(key);
+                } else if (comp < 0) {
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            return children.get(low).getClosestBigEqual(key);
+        }
+    }
+
+    public V get(K key) {
         //如果是叶子节点
         if (isLeaf) {
             int low = 0, high = entries.size() - 1, mid;
-            int comp ;
+            int comp;
             while (low <= high) {
                 mid = (low + high) / 2;
                 comp = entries.get(mid).getKey().compareTo(key);
@@ -67,17 +220,17 @@ public class BplusNode <K extends Comparable<K>, V> {
         if (key.compareTo(entries.get(0).getKey()) < 0) {
             return children.get(0).get(key);
             //如果key大于等于节点最右边的key，沿最后一个子节点继续搜索
-        }else if (key.compareTo(entries.get(entries.size()-1).getKey()) >= 0) {
-            return children.get(children.size()-1).get(key);
+        } else if (key.compareTo(entries.get(entries.size() - 1).getKey()) >= 0) {
+            return children.get(children.size() - 1).get(key);
             //否则沿比key大的前一个子节点继续搜索
-        }else {
-            int low = 0, high = entries.size() - 1, mid= 0;
-            int comp ;
+        } else {
+            int low = 0, high = entries.size() - 1, mid = 0;
+            int comp;
             while (low <= high) {
                 mid = (low + high) / 2;
                 comp = entries.get(mid).getKey().compareTo(key);
                 if (comp == 0) {
-                    return children.get(mid+1).get(key);
+                    return children.get(mid + 1).get(key);
                 } else if (comp < 0) {
                     low = mid + 1;
                 } else {
@@ -88,31 +241,31 @@ public class BplusNode <K extends Comparable<K>, V> {
         }
     }
 
-    public void insertOrUpdate(K key, V value, BplusTree<K,V> tree){
+    public void insertOrUpdate(K key, V value, BplusTree<K, V> tree) {
         //如果是叶子节点
-        if (isLeaf){
+        if (isLeaf) {
             //不需要分裂，直接插入或更新
-            if (contains(key) != -1 || entries.size() < tree.getOrder()){
+            if (contains(key) != -1 || entries.size() < tree.getOrder()) {
                 insertOrUpdate(key, value);
-                if(tree.getHeight() == 0){
+                if (tree.getHeight() == 0) {
                     tree.setHeight(1);
                 }
-                return ;
+                return;
             }
             //需要分裂
             //分裂成左右两个节点
-            BplusNode<K,V> left = new BplusNode<K,V>(true);
-            BplusNode<K,V> right = new BplusNode<K,V>(true);
+            BplusNode<K, V> left = new BplusNode<K, V>(true);
+            BplusNode<K, V> right = new BplusNode<K, V>(true);
             //设置链接
-            if (previous != null){
+            if (previous != null) {
                 previous.next = left;
-                left.previous = previous ;
+                left.previous = previous;
             }
             if (next != null) {
                 next.previous = right;
                 right.next = next;
             }
-            if (previous == null){
+            if (previous == null) {
                 tree.setHead(left);
             }
 
@@ -131,9 +284,9 @@ public class BplusNode <K extends Comparable<K>, V> {
                 parent.children.remove(this);
                 left.parent = parent;
                 right.parent = parent;
-                parent.children.add(index,left);
+                parent.children.add(index, left);
                 parent.children.add(index + 1, right);
-                parent.entries.add(index,right.entries.get(0));
+                parent.entries.add(index, right.entries.get(0));
                 entries = null; //删除当前节点的关键字信息
                 children = null; //删除当前节点的孩子节点引用
 
@@ -141,9 +294,9 @@ public class BplusNode <K extends Comparable<K>, V> {
                 parent.updateInsert(tree);
                 parent = null; //删除当前节点的父节点引用
                 //如果是根节点
-            }else {
+            } else {
                 isRoot = false;
-                BplusNode<K,V> parent = new BplusNode<K,V> (false, true);
+                BplusNode<K, V> parent = new BplusNode<K, V>(false, true);
                 tree.setRoot(parent);
                 left.parent = parent;
                 right.parent = parent;
@@ -153,7 +306,7 @@ public class BplusNode <K extends Comparable<K>, V> {
                 entries = null;
                 children = null;
             }
-            return ;
+            return;
 
         }
         //如果不是叶子节点
@@ -161,17 +314,17 @@ public class BplusNode <K extends Comparable<K>, V> {
         if (key.compareTo(entries.get(0).getKey()) < 0) {
             children.get(0).insertOrUpdate(key, value, tree);
             //如果key大于节点最右边的key，沿最后一个子节点继续搜索
-        }else if (key.compareTo(entries.get(entries.size()-1).getKey()) >= 0) {
-            children.get(children.size()-1).insertOrUpdate(key, value, tree);
+        } else if (key.compareTo(entries.get(entries.size() - 1).getKey()) >= 0) {
+            children.get(children.size() - 1).insertOrUpdate(key, value, tree);
             //否则沿比key大的前一个子节点继续搜索
-        }else {
-            int low = 0, high = entries.size() - 1, mid= 0;
-            int comp ;
+        } else {
+            int low = 0, high = entries.size() - 1, mid = 0;
+            int comp;
             while (low <= high) {
                 mid = (low + high) / 2;
                 comp = entries.get(mid).getKey().compareTo(key);
                 if (comp == 0) {
-                    children.get(mid+1).insertOrUpdate(key, value, tree);
+                    children.get(mid + 1).insertOrUpdate(key, value, tree);
                     break;
                 } else if (comp < 0) {
                     low = mid + 1;
@@ -179,44 +332,46 @@ public class BplusNode <K extends Comparable<K>, V> {
                     high = mid - 1;
                 }
             }
-            if(low>high){
+            if (low > high) {
                 children.get(low).insertOrUpdate(key, value, tree);
             }
         }
     }
 
-    private void copy2Nodes(K key, V value, BplusNode<K,V> left,
-                            BplusNode<K,V> right,BplusTree<K,V> tree) {
+    private void copy2Nodes(K key, V value, BplusNode<K, V> left,
+                            BplusNode<K, V> right, BplusTree<K, V> tree) {
         //左右两个节点关键字长度
         int leftSize = (tree.getOrder() + 1) / 2 + (tree.getOrder() + 1) % 2;
         boolean b = false;//用于记录新元素是否已经被插入
         for (int i = 0; i < entries.size(); i++) {
-            if(leftSize !=0){
-                leftSize --;
-                if(!b&&entries.get(i).getKey().compareTo(key) > 0){
+            if (leftSize != 0) {
+                leftSize--;
+                if (!b && entries.get(i).getKey().compareTo(key) > 0) {
                     left.entries.add(new SimpleEntry<K, V>(key, value));
                     b = true;
                     i--;
-                }else {
+                } else {
                     left.entries.add(entries.get(i));
                 }
-            }else {
-                if(!b&&entries.get(i).getKey().compareTo(key) > 0){
+            } else {
+                if (!b && entries.get(i).getKey().compareTo(key) > 0) {
                     right.entries.add(new SimpleEntry<K, V>(key, value));
                     b = true;
                     i--;
-                }else {
+                } else {
                     right.entries.add(entries.get(i));
                 }
             }
         }
-        if(!b){
+        if (!b) {
             right.entries.add(new SimpleEntry<K, V>(key, value));
         }
     }
 
-    /** 插入节点后中间节点的更新 */
-    protected void updateInsert(BplusTree<K,V> tree){
+    /**
+     * 插入节点后中间节点的更新
+     */
+    protected void updateInsert(BplusTree<K, V> tree) {
 
         //如果子节点数超出阶数，则需要分裂该节点
         if (children.size() > tree.getOrder()) {
@@ -227,11 +382,11 @@ public class BplusNode <K extends Comparable<K>, V> {
             int leftSize = (tree.getOrder() + 1) / 2 + (tree.getOrder() + 1) % 2;
             int rightSize = (tree.getOrder() + 1) / 2;
             //复制子节点到分裂出来的新节点，并更新关键字
-            for (int i = 0; i < leftSize; i++){
+            for (int i = 0; i < leftSize; i++) {
                 left.children.add(children.get(i));
                 children.get(i).parent = left;
             }
-            for (int i = 0; i < rightSize; i++){
+            for (int i = 0; i < rightSize; i++) {
                 right.children.add(children.get(leftSize + i));
                 children.get(leftSize + i).parent = right;
             }
@@ -249,9 +404,9 @@ public class BplusNode <K extends Comparable<K>, V> {
                 parent.children.remove(this);
                 left.parent = parent;
                 right.parent = parent;
-                parent.children.add(index,left);
+                parent.children.add(index, left);
                 parent.children.add(index + 1, right);
-                parent.entries.add(index,entries.get(leftSize - 1));
+                parent.entries.add(index, entries.get(leftSize - 1));
                 entries = null;
                 children = null;
 
@@ -259,7 +414,7 @@ public class BplusNode <K extends Comparable<K>, V> {
                 parent.updateInsert(tree);
                 parent = null;
                 //如果是根节点
-            }else {
+            } else {
                 isRoot = false;
                 BplusNode<K, V> parent = new BplusNode<K, V>(false, true);
                 tree.setRoot(parent);
@@ -275,8 +430,10 @@ public class BplusNode <K extends Comparable<K>, V> {
         }
     }
 
-    /** 删除节点后中间节点的更新*/
-    protected void updateRemove(BplusTree<K,V> tree) {
+    /**
+     * 删除节点后中间节点的更新
+     */
+    protected void updateRemove(BplusTree<K, V> tree) {
 
         // 如果子节点数小于M / 2或者小于2，则需要合并节点
         if (children.size() < tree.getOrder() / 2 || children.size() < 2) {
@@ -291,7 +448,7 @@ public class BplusNode <K extends Comparable<K>, V> {
                 root.isRoot = true;
                 entries = null;
                 children = null;
-                return ;
+                return;
             }
             //计算前后节点
             int currIdx = parent.children.indexOf(this);
@@ -317,9 +474,9 @@ public class BplusNode <K extends Comparable<K>, V> {
                 children.add(0, borrow);
                 int preIndex = parent.children.indexOf(previous);
 
-                entries.add(0,parent.entries.get(preIndex));
+                entries.add(0, parent.entries.get(preIndex));
                 parent.entries.set(preIndex, previous.entries.remove(idx - 1));
-                return ;
+                return;
             }
 
             // 如果后节点子节点数大于M / 2并且大于2，则从其处借补
@@ -334,7 +491,7 @@ public class BplusNode <K extends Comparable<K>, V> {
                 int preIndex = parent.children.indexOf(this);
                 entries.add(parent.entries.get(preIndex));
                 parent.entries.set(preIndex, next.entries.remove(0));
-                return ;
+                return;
             }
 
             // 同前面节点合并
@@ -344,7 +501,7 @@ public class BplusNode <K extends Comparable<K>, V> {
                 for (int i = 0; i < children.size(); i++) {
                     previous.children.add(children.get(i));
                 }
-                for(int i = 0; i < previous.children.size();i++){
+                for (int i = 0; i < previous.children.size(); i++) {
                     previous.children.get(i).parent = this;
                 }
                 int indexPre = parent.children.indexOf(previous);
@@ -361,14 +518,14 @@ public class BplusNode <K extends Comparable<K>, V> {
                 previous.children = null;
                 previous.entries = null;
                 parent.entries.remove(parent.children.indexOf(this));
-                if((!parent.isRoot
+                if ((!parent.isRoot
                         && (parent.children.size() >= tree.getOrder() / 2
                         && parent.children.size() >= 2))
-                        ||parent.isRoot && parent.children.size() >= 2){
-                    return ;
+                        || parent.isRoot && parent.children.size() >= 2) {
+                    return;
                 }
                 parent.updateRemove(tree);
-                return ;
+                return;
             }
 
             // 同后面节点合并
@@ -390,27 +547,27 @@ public class BplusNode <K extends Comparable<K>, V> {
                 next.children = null;
                 next.entries = null;
                 parent.entries.remove(parent.children.indexOf(this));
-                if((!parent.isRoot && (parent.children.size() >= tree.getOrder() / 2
+                if ((!parent.isRoot && (parent.children.size() >= tree.getOrder() / 2
                         && parent.children.size() >= 2))
-                        ||parent.isRoot && parent.children.size() >= 2){
-                    return ;
+                        || parent.isRoot && parent.children.size() >= 2) {
+                    return;
                 }
                 parent.updateRemove(tree);
-                return ;
+                return;
             }
         }
     }
 
-    public V remove(K key, BplusTree<K,V> tree){
+    public V remove(K key, BplusTree<K, V> tree) {
         //如果是叶子节点
-        if (isLeaf){
+        if (isLeaf) {
             //如果不包含该关键字，则直接返回
-            if (contains(key) == -1){
+            if (contains(key) == -1) {
                 return null;
             }
             //如果既是叶子节点又是根节点，直接删除
             if (isRoot) {
-                if(entries.size() == 1){
+                if (entries.size() == 1) {
                     tree.setHeight(0);
                 }
                 return remove(key);
@@ -423,7 +580,7 @@ public class BplusNode <K extends Comparable<K>, V> {
             if (previous != null &&
                     previous.parent == parent
                     && previous.entries.size() > tree.getOrder() / 2
-                    && previous.entries.size() > 2 ) {
+                    && previous.entries.size() > 2) {
                 //添加到首位
                 int size = previous.entries.size();
                 entries.add(0, previous.entries.remove(size - 1));
@@ -447,7 +604,7 @@ public class BplusNode <K extends Comparable<K>, V> {
                     && previous.parent == parent
                     && (previous.entries.size() <= tree.getOrder() / 2
                     || previous.entries.size() <= 2)) {
-                V returnValue =  remove(key);
+                V returnValue = remove(key);
                 for (int i = 0; i < entries.size(); i++) {
                     //将当前节点的关键字添加到前节点的末尾
                     previous.entries.add(entries.get(i));
@@ -463,22 +620,22 @@ public class BplusNode <K extends Comparable<K>, V> {
                     previous = temp.previous;
                     temp.previous = null;
                     temp.next = null;
-                }else {
+                } else {
                     tree.setHead(this);
                     previous.next = null;
                     previous = null;
                 }
                 parent.entries.remove(parent.children.indexOf(this));
-                if((!parent.isRoot && (parent.children.size() >= tree.getOrder() / 2
+                if ((!parent.isRoot && (parent.children.size() >= tree.getOrder() / 2
                         && parent.children.size() >= 2))
-                        ||parent.isRoot && parent.children.size() >= 2){
+                        || parent.isRoot && parent.children.size() >= 2) {
                     return returnValue;
                 }
                 parent.updateRemove(tree);
                 return returnValue;
             }
             //同后面节点合并
-            if(next != null
+            if (next != null
                     && next.parent == parent
                     && (next.entries.size() <= tree.getOrder() / 2
                     || next.entries.size() <= 2)) {
@@ -497,15 +654,15 @@ public class BplusNode <K extends Comparable<K>, V> {
                     next = temp.next;
                     temp.previous = null;
                     temp.next = null;
-                }else {
+                } else {
                     next.previous = null;
                     next = null;
                 }
                 //更新父节点的关键字列表
                 parent.entries.remove(parent.children.indexOf(this));
-                if((!parent.isRoot && (parent.children.size() >= tree.getOrder() / 2
+                if ((!parent.isRoot && (parent.children.size() >= tree.getOrder() / 2
                         && parent.children.size() >= 2))
-                        ||parent.isRoot && parent.children.size() >= 2){
+                        || parent.isRoot && parent.children.size() >= 2) {
                     return returnValue;
                 }
                 parent.updateRemove(tree);
@@ -518,12 +675,12 @@ public class BplusNode <K extends Comparable<K>, V> {
         if (key.compareTo(entries.get(0).getKey()) < 0) {
             return children.get(0).remove(key, tree);
             //如果key大于节点最右边的key，沿最后一个子节点继续搜索
-        }else if (key.compareTo(entries.get(entries.size()-1).getKey()) >= 0) {
-            return children.get(children.size()-1).remove(key, tree);
+        } else if (key.compareTo(entries.get(entries.size() - 1).getKey()) >= 0) {
+            return children.get(children.size() - 1).remove(key, tree);
             //否则沿比key大的前一个子节点继续搜索
-        }else {
-            int low = 0, high = entries.size() - 1, mid= 0;
-            int comp ;
+        } else {
+            int low = 0, high = entries.size() - 1, mid = 0;
+            int comp;
             while (low <= high) {
                 mid = (low + high) / 2;
                 comp = entries.get(mid).getKey().compareTo(key);
@@ -539,10 +696,12 @@ public class BplusNode <K extends Comparable<K>, V> {
         }
     }
 
-    /** 判断当前节点是否包含该关键字*/
+    /**
+     * 判断当前节点是否包含该关键字
+     */
     protected int contains(K key) {
         int low = 0, high = entries.size() - 1, mid;
-        int comp ;
+        int comp;
         while (low <= high) {
             mid = (low + high) / 2;
             comp = entries.get(mid).getKey().compareTo(key);
@@ -557,11 +716,13 @@ public class BplusNode <K extends Comparable<K>, V> {
         return -1;
     }
 
-    /** 插入到当前节点的关键字中*/
-    protected void insertOrUpdate(K key, V value){
+    /**
+     * 插入到当前节点的关键字中
+     */
+    protected void insertOrUpdate(K key, V value) {
         //二叉查找，插入
         int low = 0, high = entries.size() - 1, mid;
-        int comp ;
+        int comp;
         while (low <= high) {
             mid = (low + high) / 2;
             comp = entries.get(mid).getKey().compareTo(key);
@@ -574,29 +735,52 @@ public class BplusNode <K extends Comparable<K>, V> {
                 high = mid - 1;
             }
         }
-        if(low>high){
+        if (low > high) {
             entries.add(low, new SimpleEntry<K, V>(key, value));
         }
     }
 
-    /** 删除节点*/
-    protected V remove(K key){
-        int low = 0,high = entries.size() -1,mid;
+    /**
+     * 删除节点
+     */
+    protected V remove(K key) {
+        int low = 0, high = entries.size() - 1, mid;
         int comp;
-        while(low<= high){
-            mid  = (low+high)/2;
+        while (low <= high) {
+            mid = (low + high) / 2;
             comp = entries.get(mid).getKey().compareTo(key);
-            if(comp == 0){
+            if (comp == 0) {
                 return entries.remove(mid).getValue();
-            }else if(comp < 0){
+            } else if (comp < 0) {
                 low = mid + 1;
-            }else {
+            } else {
                 high = mid - 1;
             }
         }
         return null;
     }
-    public String toString(){
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof BplusNode)) return false;
+
+        BplusNode<?, ?> bplusNode = (BplusNode<?, ?>) o;
+
+        if (isLeaf != bplusNode.isLeaf) return false;
+        if (isRoot != bplusNode.isRoot) return false;
+        return entries != null ? entries.equals(bplusNode.entries) : bplusNode.entries == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = (isLeaf ? 1 : 0);
+        result = 31 * result + (isRoot ? 1 : 0);
+        result = 31 * result + (entries != null ? entries.hashCode() : 0);
+        return result;
+    }
+
+    public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("isRoot: ");
         sb.append(isRoot);
@@ -605,8 +789,10 @@ public class BplusNode <K extends Comparable<K>, V> {
         sb.append(isLeaf);
         sb.append(", ");
         sb.append("keys: ");
-        for (Entry<K,V> entry : entries){
+        for (Entry<K, V> entry : entries) {
             sb.append(entry.getKey());
+            sb.append("-->");
+            sb.append(entry.getValue());
             sb.append(", ");
         }
         sb.append(", ");

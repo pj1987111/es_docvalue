@@ -15,16 +15,11 @@ package index;
  * 8.为所有叶子结点增加一个链指针；
  * 9.所有关键字都在叶子结点出现
  *
- * @author LeeJay 2014-04-03
- * @author LeeJay 2014-04-03
- */
-/**
- * @author LeeJay 2014-04-03
- *
  */
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Random;
 
 public class BplusTree<K extends Comparable<K>, V> {
@@ -73,6 +68,93 @@ public class BplusTree<K extends Comparable<K>, V> {
         return height;
     }
 
+    /**
+     * 取>=key && <=end的key
+     * @param start
+     * @param end
+     * @return
+     */
+    public List<Entry<K, V>> getRange(K start, K end) {
+        List<Entry<K, V>> res = new ArrayList<>();
+        Entry<BplusNode<K, V>, Integer> small = root.getClosestSmallEqual(start);
+        Entry<BplusNode<K, V>, Integer> big = root.getClosestBigEqual(end);
+        if (small == null || big == null)
+            return null;
+        BplusNode<K, V> smallNode = small.getKey();
+        BplusNode<K, V> bigNode = big.getKey();
+        //上下界都在一个node里
+        if(smallNode.equals(bigNode)) {
+            for (int i = small.getValue(); i <= big.getValue(); i++)
+                res.add(smallNode.entries.get(i));
+        }
+        //上下界跨node
+        else {
+            for (int i = small.getValue(); i <= smallNode.entries.size()-1; i++)
+                res.add(smallNode.entries.get(i));
+            smallNode = smallNode.next;
+            while (!smallNode.equals(bigNode)) {
+                res.addAll(smallNode.entries);
+                smallNode = smallNode.next;
+            }
+            for (int i = 0; i <= big.getValue(); i++)
+                res.add(bigNode.entries.get(i));
+        }
+        return res;
+    }
+
+    /**
+     * 取>=start的key
+     * @param start
+     * @return
+     */
+    public List<Entry<K, V>> getRangeStart(K start) {
+        List<Entry<K, V>> res = new ArrayList<>();
+        Entry<BplusNode<K, V>, Integer> small = root.getClosestSmallEqual(start);
+        if (small == null)
+            return null;
+        BplusNode<K, V> smallNode = small.getKey();
+        for (int i = small.getValue(); i <= smallNode.entries.size()-1; i++)
+            res.add(smallNode.entries.get(i));
+        smallNode = smallNode.next;
+        while (smallNode != null) {
+            res.addAll(smallNode.entries);
+            smallNode = smallNode.next;
+        }
+        return res;
+    }
+
+    /**
+     * 取<=end的key
+     * @param end
+     * @return
+     */
+    public List<Entry<K, V>> getRangeEnd(K end) {
+        List<Entry<K, V>> res = new ArrayList<>();
+        Entry<BplusNode<K, V>, Integer> big = root.getClosestBigEqual(end);
+        if (big == null)
+            return null;
+        BplusNode<K, V> smallNode = head;
+        BplusNode<K, V> bigNode = big.getKey();
+        //上下界都在一个node里
+        if(smallNode.equals(bigNode)) {
+            for (int i = 0; i <= big.getValue(); i++)
+                res.add(smallNode.entries.get(i));
+        }
+        //上下界跨node
+        else {
+            for (int i = 0; i <= smallNode.entries.size()-1; i++)
+                res.add(smallNode.entries.get(i));
+            smallNode = smallNode.next;
+            while (!smallNode.equals(bigNode)) {
+                res.addAll(smallNode.entries);
+                smallNode = smallNode.next;
+            }
+            for (int i = 0; i <= big.getValue(); i++)
+                res.add(bigNode.entries.get(i));
+        }
+        return res;
+    }
+
     public V get(K key) {
         return root.get(key);
     }
@@ -83,7 +165,6 @@ public class BplusTree<K extends Comparable<K>, V> {
 
     public void insertOrUpdate(K key, V value) {
         root.insertOrUpdate(key, value, this);
-
     }
 
     public BplusTree(int order) {
@@ -101,13 +182,13 @@ public class BplusTree<K extends Comparable<K>, V> {
 
         int size = 1000000;
         int order = 100;
-        testRandomInsert(size, order);
+//        testRandomInsert(size, order);
 
-//		 testOrderInsert(size, order);
-//
-		 testRandomSearch(size, order);
-//
-//		 testOrderSearch(size, order);
+        testOrderInsert(size, order);
+
+//        testRandomSearch(size, order);
+
+        testOrderSearch(size, order);
 //
 //		 testRandomRemove(size, order);
 //
@@ -240,6 +321,14 @@ public class BplusTree<K extends Comparable<K>, V> {
         long current = System.currentTimeMillis();
         for (int i = 0; i < size; i++) {
             tree.insertOrUpdate(i, i);
+        }
+
+        BplusNode<Integer, Integer> head = tree.getHead();
+        System.out.println(head);
+        BplusNode<Integer, Integer> next = head.next;
+        while (next != null) {
+            System.out.println(next);
+            next = next.next;
         }
         long duration = System.currentTimeMillis() - current;
         System.out.println("time elpsed for duration: " + duration);
